@@ -84,6 +84,16 @@ getData <- function(Symbols, env)
   return(na.omit(value))
 }
 
+getDividendsData <- function(Symbols)
+{
+  dividends <- getDividends(Symbol = Symbols[1])
+  for (symbol in Symbols[-1])
+  {
+    dividends <- cbind(dividends, getDividends(Symbol = symbol))
+  }
+  return(dividends)
+}
+
 runPMD.weights <- function(data, width)
 {
   value <- matrix(data = NA,
@@ -100,7 +110,7 @@ runPMD.weights <- function(data, width)
   return(value)
 }
 
-RebalancePortfolio <- function(acct.name, portf.name, prices, width)
+RebalancePortfolio <- function(acct.name, portf.name, prices, width, dividends)
 {
   # +------------------------------------------------------------------
   # | Extract index values of a given xts object corresponding to the
@@ -109,11 +119,11 @@ RebalancePortfolio <- function(acct.name, portf.name, prices, width)
   # | equal to the length of the x argument is returned.
   # +------------------------------------------------------------------
   
-  end.of.months <- index(prices)[endpoints(x = prices)]
+  end.of.months <- index(prices)[endpoints(x = prices,
+                                           on = 'weeks')]
+  dividend.dates <- index(dividends)
   
-  file.remove('portfolio.txt')
-  
-  foreach(i = width:nrow(prices), .combine = rbind) %dopar%
+  foreach(i = width:nrow(prices)) %dopar%
   {
     today <- as.Date(index(prices[i, ]))
     portf.symbols <- colnames(prices)
@@ -132,8 +142,12 @@ RebalancePortfolio <- function(acct.name, portf.name, prices, width)
     
     equity <- as.numeric(account$summary$End.Eq[1, ])
     avail.liq <- as.numeric(account$summary$End.Eq[as.character(today), ]) - as.numeric(portfolio$summary$Gross.Value[as.character(today), ])
+    if (length(avail.liq) == 0)
+    {
+      avail.liq <- equity
+    }
     
-    if (today %in% end.of.months)
+    if (today %in% end.of.months && !(today %in% dividend.dates))
     {
       message(paste0(today, ': è il momento di ribilanciare...'))
       theor.weights <- PMD.weights(prices[(i - width + 1):i, ]) / 100
@@ -143,13 +157,13 @@ RebalancePortfolio <- function(acct.name, portf.name, prices, width)
       for (j in 1:length(portf.symbols))
       {
         symbol <- portf.symbols[j]
-        pos.qty <- as.numeric(portfolio$symbols[[symbol]]$posPL$Pos.Qty[as.character(today), ])
-        pos.avg.cost <- as.numeric(portfolio$symbols[[symbol]]$posPL$Pos.Avg.Cost[as.character(today), ])
+        pos.qty <- max(c(0, as.numeric(portfolio$symbols[[symbol]]$posPL$Pos.Qty[as.character(today), ])))
+        pos.avg.cost <- max(c(0, as.numeric(portfolio$symbols[[symbol]]$posPL$Pos.Avg.Cost[as.character(today), ])))
         pos.value[j] <- pos.qty * pos.avg.cost
       }
       to.trade.value <- theor.value - pos.value
       to.trade.value <- ifelse(to.trade.value > 0, pmin(avail.liq / ncol(prices), to.trade.value), to.trade.value)
-      to.trade.shares <- floor(to.trade.value / prices[today, ])
+      to.trade.shares <- ifelse(to.trade.value >= 0, floor(to.trade.value / prices[today, ]), ceiling(to.trade.value / prices[today, ]))
       for (j in 1:length(portf.symbols))
       {
         symbol <- portf.symbols[j]
@@ -171,6 +185,25 @@ RebalancePortfolio <- function(acct.name, portf.name, prices, width)
                  TxnPrice = as.numeric(prices[today, symbol]),
                  TxnFees = 0)
         }
+      }
+    }
+    for (k in 1:ncol(dividends))
+    {
+      symbol <- colnames(dividends)[k]
+      div.per.share <- as.numeric(dividends[today, symbol])
+      if (!is.na(div.per.share) && length(div.per.share) > 0)
+      {
+        # +------------------------------------------------------------------
+        # | Adding a cash dividend does not affect position quantity, like a 
+        # | split would.
+        # +------------------------------------------------------------------
+        
+        addDiv(Portfolio = portf.name,
+               Symbol = gsub(pattern = '.div',
+                             replacement = '',
+                             x = symbol),
+               TxnDate = today,
+               DivPerShare = div.per.share)
       }
     }
     
@@ -227,6 +260,8 @@ RebalancePortfolio <- function(acct.name, portf.name, prices, width)
   charts.PerformanceSummary(R = R,
                             geometric = TRUE,
                             main = paste0(portf.name, ' Portfolio'))
+  
+  table.AnnualizedReturns(R = R)
 }
 
 # +------------------------------------------------------------------
@@ -248,6 +283,7 @@ PMD.weights <- function(prices)
 Symbols <- c('SPY', 'GLD', 'TLT', 'HYG', 'LQD', 'EEM', 'GDX', 'QQQ', 'USO')
 prices <- getData(Symbols = Symbols,
                   env = new.env())
+dividends <- getDividendsData(Symbols = Symbols)
 currency('USD')
 for (symbol in Symbols)
 {
