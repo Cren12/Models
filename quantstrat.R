@@ -315,9 +315,3 @@ initPortf('Prova',
 initAcct(name = 'Ciccio',
          portfolios = 'Prova',
          initEq = 400000)
-RebalancePortfolio(acct.name = 'Ciccio',
-                   portf.name = 'Prova',
-                   prices = prices,
-                   width = 250,
-                   dividends = dividends,
-                   rebalance.on = 'weeks')
