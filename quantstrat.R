@@ -70,7 +70,7 @@ getData <- function(Symbols, env)
              env = env,
              from = '1950-01-01')
   args <- eapply(env = env,
-                 FUN = Ad)[Symbols] # Use Cl instead of Ad for discrete dividends
+                 FUN = Cl)[Symbols] # Use Cl instead of Ad for discrete dividends
   value <- do.call(what = merge,
                    args = args)
   for (symbol in Symbols)
@@ -110,7 +110,7 @@ runPMD.weights <- function(data, width)
   return(value)
 }
 
-RebalancePortfolio <- function(acct.name, portf.name, prices, width, dividends = NULL, theor.weights = 'pmd', rebalance.on = 'months')
+RebalancePortfolio <- function(acct.name, portf.name, prices, width, dividends = NULL, theor.w.strat = 'pmd', rebalance.on = 'months')
 {
   # +------------------------------------------------------------------
   # | Extract index values of a given xts object corresponding to the
@@ -150,13 +150,12 @@ RebalancePortfolio <- function(acct.name, portf.name, prices, width, dividends =
     {
       avail.liq <- equity
     }
-    
     if (   today %in% end.of.months 
-        # && !(today %in% dividend.dates)
+        && !(today %in% dividend.dates)
         )
     {
-      message(paste0(today, ': è il momento di ribilanciare...'))
-      if (theor.weights == 'pmd')
+      message(paste0(today, ': rebalancing...'))
+      if (theor.w.strat == 'pmd')
       {
         theor.weights <- PMD.weights(prices[(i - width + 1):i, ]) / 100
       }
@@ -296,7 +295,7 @@ PMD.weights <- function(prices)
 # +------------------------------------------------------------------
 
 # Symbols <- c('SPY', 'GLD', 'TLT', 'HYG', 'LQD', 'EEM', 'GDX', 'QQQ', 'USO')
-Symbols <- c('IEAC.L', 'IHYG.L', 'IBCX.L', 'SE15.L', 'IBGX.L')
+Symbols <- c('HYG', 'TLT', 'LQD')
 prices <- getData(Symbols = Symbols,
                   env = new.env())
 dividends <- getDividendsData(Symbols = Symbols)
@@ -316,6 +315,9 @@ initPortf('Prova',
 initAcct(name = 'Ciccio',
          portfolios = 'Prova',
          initEq = 400000)
-
-generateOrders()
-backtest()
+RebalancePortfolio(acct.name = 'Ciccio',
+                   portf.name = 'Prova',
+                   prices = prices,
+                   width = 250,
+                   dividends = dividends,
+                   rebalance.on = 'weeks')
