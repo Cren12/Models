@@ -1,5 +1,13 @@
 # +------------------------------------------------------------------
-# | User inputs
+# | User variable inputs
+# +------------------------------------------------------------------
+
+target.date <- as.Date( '2018-09-28' )
+underlying <- 86.36
+quantity <- 0
+
+# +------------------------------------------------------------------
+# | User fixed inputs
 # +------------------------------------------------------------------
 
 L <- 100000
@@ -68,10 +76,12 @@ dygraph(logistic.fun.fcc(L = L,
                          x = x, 
                          x0 = x0, 
                          fcc = fcc))
-logistic.fun.fcc(L = L, 
-                 x = x, 
-                 x0 = x0, 
-                 fcc = fcc)[Sys.Date(), ]
-
-
-
+(value.path <- logistic.fun.fcc(L = L, 
+                                x = x, 
+                                x0 = x0, 
+                                fcc = fcc)[target.date, ])
+cat('Current path:', underlying * quantity, '\n')
+to.trade <- round((value.path - underlying * quantity) / underlying)
+cat('You should', ifelse(to.trade < 0, 'sell', 'buy'), abs(to.trade), 'shares\n')
+opt.to.trade <- max(1, floor(value.path / (underlying * 100)))
+cat('Short', opt.to.trade, 'option(s)\n')
