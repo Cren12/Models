@@ -22,6 +22,21 @@ lapply(X = packages,
          }
        })
 
+# +------------------------------------------------------------------
+# | Sys.setenv sets environment variables.
+# +------------------------------------------------------------------
+
+Sys.setenv(TZ = 'UTC')
+
+# +------------------------------------------------------------------
+# | source() causes R to accept its input from the named file or URL
+# | or connection or expressions directly.
+# +------------------------------------------------------------------
+
+# source()
+
+# +------------------------------------------------------------------
+
 WinDoPar <- function(
   x, # An xts object
   n, # Number of periods to apply rolling function window over
