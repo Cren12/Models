@@ -86,8 +86,8 @@ WinDoPar <- function(
   # | original format. An S3 object of class xts is returned.
   # +------------------------------------------------------------------
   
-  xts.result <- reclass(x = raw.result,
-                        match.to = x[n:nrow(x), ])
+  xts.result <- xts(x = raw.result,
+                    order.by = index(x[n:nrow(x), ]))
   
   return(xts.result)
 }
