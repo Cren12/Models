@@ -39,7 +39,6 @@ source('FindMins.R')
 MakeSuppTable <- function(
   hl, # Object that is coercible to xts or matrix and contains either a High-Low price series, or a Close price series
   change, # Minimum price movement in percent
-  how.many
 )
 {
   min.points <- FindMins(hl = hl,
@@ -63,19 +62,19 @@ MakeSuppTable <- function(
   
   supp.table <- foreach(i = 1:nrow(min.points), .combine = rbind) %:%
     foreach(j = 1:nrow(min.points), .combine = rbind) %dopar%
-  {
-    if (i != j)
     {
-      avg <- mean(c(min.points[i], min.points[j]))
-      sse <- sum((c(min.points[i], min.points[j]) - avg) ^ 2)
-      from <- min(c(index(min.points[i])), c(index(min.points[j])))
-      to <- max(c(index(min.points[i])), c(index(min.points[j])))
-      duration <- index(last(hl)) - to
-      return(cbind(avg, sse, from, to, duration))
-    } else {
-      return(rep(NA, 5))
+      if (i < j)
+      {
+        avg <- mean(c(min.points[i], min.points[j]))
+        sse <- sum((c(min.points[i], min.points[j]) - avg) ^ 2)
+        from <- min(c(index(min.points[i])), c(index(min.points[j])))
+        to <- max(c(index(min.points[i])), c(index(min.points[j])))
+        duration <- index(last(hl)) - to
+        return(cbind(avg, sse, from, to, duration))
+      } else {
+        return(rep(NA, 5))
+      }
     }
-  }
   
   # +------------------------------------------------------------------
   # | unique returns a data frame like x but with duplicate 
@@ -87,7 +86,7 @@ MakeSuppTable <- function(
   supp.table <- as.data.frame(supp.table)
   supp.table$from <- as.Date(supp.table$from)
   supp.table$to <- as.Date(supp.table$to)
-  to.remove <- foreach(i = 1:nrow(supp.table), .combine = c) %dopar%
+  to.remove <- foreach(i = 1:nrow(supp.table), .combine = c) %do%
   {
     from <- supp.table$from[i]
     avg <- supp.table$avg[i]
@@ -100,6 +99,9 @@ MakeSuppTable <- function(
   }
   supp.table.net <- supp.table[-na.omit(to.remove), ]
   supp.table.net <- supp.table.net[order(supp.table.net$sse * supp.table.net$duration * abs(supp.table.net$avg - as.numeric(last(hl)))), ]
-  return(cbind(head(supp.table.net$avg, how.many)))
+  weights <- 1 / 1:nrow(supp.table.net)
+  weights <- weights / sum(weights)
+  weight.supp <- sum(weights * supp.table.net$avg)
+  return(weight.supp)
 }
 
