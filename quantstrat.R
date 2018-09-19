@@ -144,7 +144,11 @@ RebalancePortfolio <- function(acct.name, portf.name, prices, width, dividends =
     
     account <- getAccount(acct.name)
     
-    equity <- as.numeric(account$summary$End.Eq[1, ])
+    equity <- as.numeric(account$summary$End.Eq[as.character(timestamp), ])
+    if (length(equity) == 0)
+    {
+      equity <- as.numeric(account$summary$End.Eq[1, ])
+    }
     avail.liq <- as.numeric(account$summary$End.Eq[as.character(today), ]) - as.numeric(portfolio$summary$Gross.Value[as.character(today), ])
     if (length(avail.liq) == 0)
     {
