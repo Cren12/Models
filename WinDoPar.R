@@ -79,6 +79,10 @@ WinDoPar <- function(
       return(fn(x[(i - n + 1):i, ], ...))
     }
   }
+  na.to.add <- matrix(data = NA,
+                      ncol = ncol(raw.result),
+                      nrow = nrow(x) - nrow(raw.result))
+  raw.result <- rbind(na.to.add, raw.result)
   
   # +------------------------------------------------------------------
   # | Conversion functions to coerce data objects of arbitrary classes
@@ -87,7 +91,7 @@ WinDoPar <- function(
   # +------------------------------------------------------------------
   
   xts.result <- xts(x = raw.result,
-                    order.by = index(x[n:nrow(x), ]))
+                    order.by = index(x))
   
   return(xts.result)
 }
