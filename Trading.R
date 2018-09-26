@@ -31,8 +31,12 @@ lapply(X = package,
 require(quantstrat)
 
 # +------------------------------------------------------------------
-# | Level 1:
-# | - osTotSize
+# | source() causes R to accept its input from the named file or URL
+# | or connection or expressions directly.
+# +------------------------------------------------------------------
+
+# source()
+
 # +------------------------------------------------------------------
 
 osTotSize <- function(
