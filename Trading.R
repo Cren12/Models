@@ -176,7 +176,9 @@ for(primary_id in Symbols)
 }
 
 # +------------------------------------------------------------------
-# | Indicators
+# | Indicators are typically standard technical or statistical
+# | analysis outputs, such as moving averages, bands, or pricing 
+# | models.
 # +------------------------------------------------------------------
 
 add.indicator(strategy = name,
@@ -189,9 +191,7 @@ add.indicator(strategy = name,
               store = TRUE)
 
 # +------------------------------------------------------------------
-# | Indicators are typically standard technical or statistical
-# | analysis outputs, such as moving averages, bands, or pricing 
-# | models.
+# | This adds a signal definition to a strategy object.
 # +------------------------------------------------------------------
 
 add.signal(strategy = name,
