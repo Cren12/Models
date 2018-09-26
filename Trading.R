@@ -186,7 +186,7 @@ add.indicator(strategy = name,
               arguments = list(OHLC = quote(OHLC(mktdata)),
                                n = 5,
                                calc = 'yang.zhang',
-                               N = 1),
+                               N = 3),
               label = 'sigma',
               store = TRUE)
 
