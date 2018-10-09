@@ -1,6 +1,5 @@
 package <- c("compiler",
              "quantmod",
-             "dygraphs",
              "plyr",
              "devtools",
              "PerformanceAnalytics")
@@ -35,7 +34,8 @@ require(quantstrat)
 # | or connection or expressions directly.
 # +------------------------------------------------------------------
 
-# source()
+source('WinDoPar.R')
+source('PerfectTimingIndicator_sig.R')
 
 # +------------------------------------------------------------------
 
@@ -59,6 +59,27 @@ osTotSize <- function(
                "Order Details:\n", "Timestamp:", timestamp, "Qty:", 
                orderqty, "Symbol:", symbol))
   }
+  
+  # +------------------------------------------------------------------
+  # | The updatePortf function goes through each symbol and calculates
+  # | the PL for each period prices are available.
+  # +------------------------------------------------------------------
+  
+  updatePortf(Portfolio = portfolio,
+              Symbols = symbol)
+  
+  # +------------------------------------------------------------------
+  # | Constructs the equity account calculations from the portfolio 
+  # | data and corresponding close prices.
+  # +------------------------------------------------------------------
+  
+  updateAcct(name = acct.name)
+  
+  # +------------------------------------------------------------------
+  # | Calculates End.Eq and Net.Performance.
+  # +------------------------------------------------------------------
+  
+  updateEndEq(Account = acct.name)
   
   # +------------------------------------------------------------------
   # | Get a portfolio object conssting of either a nested list 
@@ -102,6 +123,22 @@ Symbols <- c("LQD",
              "XLF",
              "XLV",
              "DIA")
+
+require(Rblpapi)
+require(foreach)
+con <- blpConnect()
+ts <- bdh(securities = paste(Symbols, 'US Equity'),
+          fields = c('PX_OPEN', 'PX_HIGH', 'PX_LOW', 'PX_LAST'),
+          start.date = Sys.Date() - 365* 30)
+foreach(i = 1:length(ts)) %do%
+{
+  ts.xts <- xts(x = ts[[i]][, -1],
+                order.by = ts[[i]][, 1])
+  colnames(ts.xts) <- c('Open', 'High', 'Low', 'Close')
+  assign(x = Symbols[i],
+         value = ts.xts)
+  return(Symbols[i])
+}
 
 # +------------------------------------------------------------------
 # | Functions to load and manage Symbols in specified environment. 
@@ -189,6 +226,14 @@ add.indicator(strategy = name,
                                N = 3),
               label = 'sigma',
               store = TRUE)
+add.indicator(strategy = name,
+              name = 'WinDoPar',
+              arguments = list(x = quote(OHLC(mktdata)),
+                               n = 250,
+                               w = 'exp',
+                               fun = PTI),
+              label = 'pti',
+              store = TRUE)
 
 # +------------------------------------------------------------------
 # | This adds a signal definition to a strategy object.
@@ -196,12 +241,11 @@ add.indicator(strategy = name,
 
 add.signal(strategy = name,
            name = 'sigThreshold',
-           arguments = list(label = ,
-                            column = ,
-                            threshold = ,
+           arguments = list(column = 'pti',
+                            threshold = .5,
                             relationship = 'gte',
-                            cross = TRUE),
-           label = ,
+                            cross = FALSE),
+           label = 'pti.buy',
            store = TRUE)
 
 # +------------------------------------------------------------------
@@ -211,30 +255,32 @@ add.signal(strategy = name,
 
 add.rule(strategy = name,
          name = 'ruleSignal',
-         arguments = list(sigcol = ,
+         arguments = list(sigcol = 'pti.buy',
                           sigval = TRUE,
                           orderqty = 1,
                           ordertype = 'market',
                           orderside = 'long',
+                          replace = TRUE,
                           osFUN = osTotSize,
+                          acct.name = name,
                           TxnFees = TxnFees),
-         label = ,
+         label = 'pti.buy.enter',
          type = 'enter',
          store = TRUE)
 add.rule(strategy = name,
          name = 'ruleSignal',
-         arguments = list(sigcol = ,
+         arguments = list(sigcol = 'pti.buy',
                           sigval = TRUE,
                           orderqty = 'all',
-                          ordertype = 'stoptrailing',
+                          ordertype = 'stoptrailing', # stoplimit # stoptrailing
                           orderside = 'long',
                           orderset = 'stop',
                           threshold = quote(-mktdata[timestamp, 'X1.sigma']),
                           tmult = TRUE,
                           TxnFees = TxnFees),
-         label = ,
+         label = 'pti.buy.chain',
          type = 'chain',
-         parent = ,
+         parent = 'pti.buy.enter',
          store = TRUE)
 
 # +------------------------------------------------------------------
@@ -253,6 +299,19 @@ applyStrategy(strategy = name,
 updatePortf(Portfolio = name,
             Symbols = Symbols)
 
+# +------------------------------------------------------------------
+# | Constructs the equity account calculations from the portfolio 
+# | data and corresponding close prices.
+# +------------------------------------------------------------------
+
+updateAcct(name = name)
+
+# +------------------------------------------------------------------
+# | Calculates End.Eq and Net.Performance.
+# +------------------------------------------------------------------
+
+updateEndEq(Account = name)
+
 for (symbol in Symbols)
 {
   dev.new()
@@ -263,7 +322,7 @@ for (symbol in Symbols)
   # | in the second, and a cumulative profit-loss line chart in the 
   # | third.
   # +------------------------------------------------------------------
-
+  
   try(chart.Posn(Portfolio = name,
                  Symbol = symbol))
 }
