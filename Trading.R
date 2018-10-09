@@ -1,6 +1,5 @@
 package <- c("compiler",
              "quantmod",
-             "plyr",
              "devtools",
              "PerformanceAnalytics")
 
@@ -35,7 +34,6 @@ require(quantstrat)
 # +------------------------------------------------------------------
 
 source('WinDoPar.R')
-source('PerfectTimingIndicator_sig.R')
 
 # +------------------------------------------------------------------
 
@@ -124,21 +122,23 @@ Symbols <- c("LQD",
              "XLV",
              "DIA")
 
-require(Rblpapi)
-require(foreach)
-con <- blpConnect()
-ts <- bdh(securities = paste(Symbols, 'US Equity'),
-          fields = c('PX_OPEN', 'PX_HIGH', 'PX_LOW', 'PX_LAST'),
-          start.date = Sys.Date() - 365* 30)
-foreach(i = 1:length(ts)) %do%
-{
-  ts.xts <- xts(x = ts[[i]][, -1],
-                order.by = ts[[i]][, 1])
-  colnames(ts.xts) <- c('Open', 'High', 'Low', 'Close')
-  assign(x = Symbols[i],
-         value = ts.xts)
-  return(Symbols[i])
-}
+### IF BLOOMBERG ###
+
+# require(Rblpapi)
+# require(foreach)
+# con <- blpConnect()
+# ts <- bdh(securities = paste(Symbols, 'US Equity'),
+#           fields = c('PX_OPEN', 'PX_HIGH', 'PX_LOW', 'PX_LAST'),
+#           start.date = Sys.Date() - 365* 30)
+# foreach(i = 1:length(ts)) %do%
+# {
+#   ts.xts <- xts(x = ts[[i]][, -1],
+#                 order.by = ts[[i]][, 1])
+#   colnames(ts.xts) <- c('Open', 'High', 'Low', 'Close')
+#   assign(x = Symbols[i],
+#          value = ts.xts)
+#   return(Symbols[i])
+# }
 
 # +------------------------------------------------------------------
 # | Functions to load and manage Symbols in specified environment. 
