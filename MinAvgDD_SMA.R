@@ -45,10 +45,8 @@ MinAvgDD_SMA <- function(
 )
 {
   # +------------------------------------------------------------------
-  # | Form row and column sums and means for numeric arrays (or data 
-  # | frames). Conversion functions to coerce data objects of arbitrary
-  # | classes to class xts and back, without losing any attributes of
-  # | the original format. An S3 object of class xts is returned. 
+  # | Form row means for the OHLC time series. Coerce data object to
+  # | class xts. An S3 object of class xts is returned. 
   # +------------------------------------------------------------------
   
   price <- reclass(x = rowMeans(ohlc),
@@ -73,8 +71,8 @@ MinAvgDD_SMA <- function(
   sma.dd.table <- foreach(n = from.n:to.n, .combine = rbind.data.frame) %dopar%
   {
     # +------------------------------------------------------------------
-    # | Calculate various moving averages (MA) of a series. Simple moving
-    # | average is returned.
+    # | Calculate various moving averages (MA) of the series. Simple 
+    # | moving average is returned.
     # +------------------------------------------------------------------
     
     sma <- SMA(x = price,
@@ -101,15 +99,14 @@ MinAvgDD_SMA <- function(
   model <- lm(formula = sma.dd.table$AvgDrawdown ~ sma.dd.table$n + I(sma.dd.table$n ^ 2))
   
   # +------------------------------------------------------------------
-  # | Determines the location, i.e., index of the (first) maximum of a
-  # | numeric vector.
+  # | Determines the location, i.e., index of the (first) maximum of 
+  # | the linear model fitted values.
   # +------------------------------------------------------------------
   
   best.n <- sma.dd.table$n[which.max(model$fitted.values)]
   
   # +------------------------------------------------------------------
-  # | Calculate various moving averages (MA) of a series. Simple moving
-  # | average is returned.
+  # | Simple moving average with the best period is returned.
   # +------------------------------------------------------------------
   
   return(as.numeric(last(SMA(x = price,
