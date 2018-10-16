@@ -122,5 +122,6 @@ LOESS_trendIndicator <- function(
     d.local.reg <- last(diff(local.reg$smooth))
     return(ifelse(d.local.reg > 0, TRUE, FALSE))
   }
-  return(sum(ten.wises.response) / nrow(ten.wises.response))
+  p <- sum(ten.wises.response) / nrow(ten.wises.response)
+  return(2 * p - 1)
 }
