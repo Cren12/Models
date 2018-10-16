@@ -57,6 +57,27 @@ osVarSize <- function(
   }
   
   # +------------------------------------------------------------------
+  # | The updatePortf function goes through each symbol and calculates
+  # | the PL for each period prices are available.
+  # +------------------------------------------------------------------
+  
+  updatePortf(Portfolio = portfolio,
+              Symbols = symbol)
+  
+  # +------------------------------------------------------------------
+  # | Constructs the equity account calculations from the portfolio 
+  # | data and corresponding close prices.
+  # +------------------------------------------------------------------
+  
+  updateAcct(name = acct.name)
+  
+  # +------------------------------------------------------------------
+  # | Calculates End.Eq and Net.Performance.
+  # +------------------------------------------------------------------
+  
+  updateEndEq(Account = acct.name)
+       
+  # +------------------------------------------------------------------
   # | Get a portfolio object conssting of either a nested list 
   # | (getPortfolio).
   # +------------------------------------------------------------------
