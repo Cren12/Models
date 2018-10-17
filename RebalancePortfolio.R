@@ -99,7 +99,7 @@ RebalancePortfolio <- function(
       pos.value <- pos.qty * pos.avg.cost
       to.trade.value <- theor.value - pos.value
       to.trade.value <- ifelse(to.trade.value > 0, min(c(avail.liq, to.trade.value)), to.trade.value)
-      to.trade.shares <- ifelse(to.trade.value >= 0, floor(to.trade.value / prices[today, ]), ceiling(to.trade.value / prices[today, ]))
+      to.trade.shares <- ifelse(to.trade.value >= 0, floor(to.trade.value / prices[today, ]), floor(to.trade.value / prices[today, ]))
       if (as.numeric(to.trade.shares) != 0)
       {
         # +------------------------------------------------------------------
