@@ -120,8 +120,18 @@ LOESS_trendIndicator <- function(
                                 span = i / 100,
                                 n.sd = 2)
     d.local.reg <- last(diff(local.reg$smooth))
-    return(ifelse(d.local.reg > 0, TRUE, FALSE))
+    return(d.local.reg)
   }
-  p <- sum(ten.wises.response) / nrow(ten.wises.response)
-  return(2 * p - 1)
+  
+  # +------------------------------------------------------------------
+  # | The (S3) generic function density computes kernel density 
+  # | estimates. Its default method does so with the given kernel and 
+  # | bandwidth for univariate observations.
+  # +------------------------------------------------------------------
+  
+  dens <- density(ten.wises.response)
+  
+  pos.dens <- sum(dens$y[dens$x >= 0] * diff(dens$x[dens$x >= 0]))
+  neg.dens <- sum(dens$y[dens$x < 0] * diff(dens$x[dens$x < 0]))
+  return(2 * pos.dens - 1)
 }
