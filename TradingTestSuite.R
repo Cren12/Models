@@ -233,8 +233,8 @@ foreach(i = 1:length(ts)) %do%
 
 name <- 'Trading'
 currency <- 'USD'
-initEq <- 10000 * length(Symbols)
-TxnFees <- -4
+initEq <- 100000 * length(Symbols)
+TxnFees <- 0
 Sys.setenv(TZ = 'UTC')
 
 # +------------------------------------------------------------------
@@ -301,7 +301,7 @@ for(primary_id in Symbols)
 add.indicator(strategy = name,
               name = 'WinDoPar',
               arguments = list(x = quote(OHLC(mktdata)),
-                               n = 1000,
+                               n = 750,
                                w = 'run',
                                fun = LOESS_trendIndicator),
               label = 'pti',
@@ -326,6 +326,14 @@ add.signal(strategy = name,
                             relationship = 'gte',
                             cross = FALSE),
            label = 'pti.buy',
+           store = TRUE)
+add.signal(strategy = name,
+           name = 'sigThreshold',
+           arguments = list(column = 'pti',
+                            threshold = 0,
+                            relationship = 'gte',
+                            cross = FALSE),
+           label = 'pti.sell',
            store = TRUE)
 
 # +------------------------------------------------------------------
@@ -431,6 +439,16 @@ for (symbol in Symbols)
 R <- PortfReturns(Account = name)
 
 R$Tot.DailyEqPl <- rowSums(R)
+
+# +------------------------------------------------------------------
+# | Retrieves an account object from the .blotter environment. Useful
+# | for local examination or charting, or storing interim results for
+# | later reference.
+# +------------------------------------------------------------------
+
+account <- getAccount(Account = name)
+
+plot(cumsum(account$summary$Realized.PL)[cumsum(account$summary$Realized.PL) != 0], main = 'Realized PL')
 
 # +------------------------------------------------------------------
 # | For a set of returns, create a wealth index chart, bars for 
