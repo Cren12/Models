@@ -35,7 +35,87 @@ require(quantstrat)
 # +------------------------------------------------------------------
 
 source('WinDoPar.R')
-source('PerfectTimingIndicator_sig.R')
+source('LOESS_trendIndicator.R')
+
+# +------------------------------------------------------------------
+
+osVarSize <- function(
+  data, 
+  timestamp, 
+  orderqty, 
+  ordertype, 
+  orderside, 
+  portfolio,
+  symbol, 
+  ruletype, 
+  digits = 0,
+  acct.name,
+  ...
+)
+{
+  if (orderqty == "all" && !(ruletype %in% c("exit", "risk")) || 
+      orderqty == "trigger" && ruletype != "chain") {
+    stop(paste("orderqty 'all'/'trigger' would produce nonsense, maybe use osMaxPos instead?\n", 
+               "Order Details:\n", "Timestamp:", timestamp, "Qty:", 
+               orderqty, "Symbol:", symbol))
+  }
+  
+  # +------------------------------------------------------------------
+  # | The updatePortf function goes through each symbol and calculates
+  # | the PL for each period prices are available.
+  # +------------------------------------------------------------------
+  
+  updatePortf(Portfolio = portfolio,
+              Symbols = symbol)
+  
+  # +------------------------------------------------------------------
+  # | Constructs the equity account calculations from the portfolio 
+  # | data and corresponding close prices.
+  # +------------------------------------------------------------------
+  
+  updateAcct(name = acct.name)
+  
+  # +------------------------------------------------------------------
+  # | Calculates End.Eq and Net.Performance.
+  # +------------------------------------------------------------------
+  
+  updateEndEq(Account = acct.name)
+  
+  # +------------------------------------------------------------------
+  # | Get a portfolio object conssting of either a nested list 
+  # | (getPortfolio).
+  # +------------------------------------------------------------------
+  
+  portfolio.object <- blotter::getPortfolio(portfolio)
+  
+  # +------------------------------------------------------------------
+  # | Retrieves an account object from the .blotter environment. Useful
+  # | for local examination or charting, or storing interim results for
+  # | later reference.
+  # +------------------------------------------------------------------
+  
+  account <- getAccount(acct.name)
+  
+  equity <- as.numeric(account$summary$End.Eq[as.character(timestamp), ])
+  if (length(equity) == 0)
+  {
+    equity <- as.numeric(account$summary$End.Eq[1, ])
+  }
+  avail.liq <- equity - as.numeric(portfolio.object$summary$Gross.Value[as.character(timestamp), ])
+  if (length(avail.liq) == 0)
+  {
+    avail.liq <- equity
+  }
+  theor.value <- ifelse(is.na(mktdata[timestamp, 5]), 0, mktdata[timestamp, 5] * equity)
+  pos.qty <- max(c(0, as.numeric(portfolio.object$symbols[[symbol]]$posPL$Pos.Qty[as.character(timestamp), ])))
+  pos.avg.cost <- max(c(0, as.numeric(portfolio.object$symbols[[symbol]]$posPL$Pos.Avg.Cost[as.character(timestamp), ])))
+  pos.value <- pos.qty * pos.avg.cost
+  to.trade.value <- theor.value - pos.value
+  to.trade.value <- ifelse(to.trade.value > 0, min(c(avail.liq, to.trade.value)), to.trade.value)
+  to.trade.shares <- ifelse(to.trade.value >= 0, floor(to.trade.value / Cl(mktdata[timestamp, ])), floor(to.trade.value / Cl(mktdata[timestamp, ])))
+  orderqty <- to.trade.shares
+  return(orderqty)
+}
 
 # +------------------------------------------------------------------
 
@@ -148,8 +228,8 @@ foreach(i = 1:length(ts)) %do%
 # | return.class.
 # +------------------------------------------------------------------
 
-getSymbols(Symbols = Symbols,
-           from = Sys.Date() - 365 * 30)
+# getSymbols(Symbols = Symbols,
+#            from = Sys.Date() - 365 * 30)
 
 name <- 'Trading'
 currency <- 'USD'
@@ -219,21 +299,20 @@ for(primary_id in Symbols)
 # +------------------------------------------------------------------
 
 add.indicator(strategy = name,
+              name = 'WinDoPar',
+              arguments = list(x = quote(OHLC(mktdata)),
+                               n = 1000,
+                               w = 'run',
+                               fun = LOESS_trendIndicator),
+              label = 'pti',
+              store = TRUE)
+add.indicator(strategy = name,
               name = 'volatility',
               arguments = list(OHLC = quote(OHLC(mktdata)),
                                n = 5,
                                calc = 'yang.zhang',
                                N = 3),
               label = 'sigma',
-              store = TRUE)
-add.indicator(strategy = name,
-              name = 'WinDoPar',
-              arguments = list(x = quote(OHLC(mktdata)),
-                               n = 250,
-                               w = 'exp',
-                               fun = PTI,
-                               oversold.p = .5),
-              label = 'pti',
               store = TRUE)
 
 # +------------------------------------------------------------------
@@ -243,7 +322,7 @@ add.indicator(strategy = name,
 add.signal(strategy = name,
            name = 'sigThreshold',
            arguments = list(column = 'pti',
-                            threshold = .5,
+                            threshold = 0,
                             relationship = 'gte',
                             cross = FALSE),
            label = 'pti.buy',
@@ -262,7 +341,7 @@ add.rule(strategy = name,
                           ordertype = 'market',
                           orderside = 'long',
                           replace = TRUE,
-                          osFUN = osTotSize,
+                          osFUN = osVarSize,
                           acct.name = name,
                           TxnFees = TxnFees),
          label = 'pti.buy.enter',
@@ -270,19 +349,33 @@ add.rule(strategy = name,
          store = TRUE)
 add.rule(strategy = name,
          name = 'ruleSignal',
-         arguments = list(sigcol = 'pti.buy',
+         arguments = list(sigcol = 'pti.sell',
                           sigval = TRUE,
-                          orderqty = 'all',
-                          ordertype = 'stoplimit', # stoplimit # stoptrailing
+                          orderqty = 1,
+                          ordertype = 'market',
                           orderside = 'long',
-                          orderset = 'stop',
-                          threshold = quote(-mktdata[timestamp, 'X1.sigma']),
-                          tmult = TRUE,
+                          replace = TRUE,
+                          osFUN = osVarSize,
+                          acct.name = name,
                           TxnFees = TxnFees),
-         label = 'pti.buy.chain',
-         type = 'chain',
-         parent = 'pti.buy.enter',
+         label = 'pti.buy.enter',
+         type = 'exit',
          store = TRUE)
+# add.rule(strategy = name,
+#          name = 'ruleSignal',
+#          arguments = list(sigcol = 'pti.buy',
+#                           sigval = TRUE,
+#                           orderqty = 'all',
+#                           ordertype = 'stoptrailing', # stoplimit # stoptrailing
+#                           orderside = 'long',
+#                           orderset = 'stop',
+#                           threshold = quote(-mktdata[timestamp, 'X1.sigma']),
+#                           tmult = TRUE,
+#                           TxnFees = TxnFees),
+#          label = 'pti.buy.chain',
+#          type = 'chain',
+#          parent = 'pti.buy.enter',
+#          store = TRUE)
 
 # +------------------------------------------------------------------
 # | This function is the wrapper that holds together the execution of
