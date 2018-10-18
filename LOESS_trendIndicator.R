@@ -114,12 +114,12 @@ LOESS_trendIndicator <- function(
   
   plan(multiprocess)
   
-  ten.wises.response <- foreach(i = seq(from = 5, to = 99, length.out = 10), .combine = c) %do%
+  ten.wises.response <- foreach(i = seq(from = 5, to = 99, length.out = 10), .combine = c) %dopar%
   {
     local.reg <- LOESS_smoother(ts.xts = price,
                                 span = i / 100,
                                 n.sd = 2)
-    d.local.reg <- last(diff(local.reg$smooth))
+    d.local.reg <- last(diff(log(local.reg$smooth)))
     return(d.local.reg)
   }
   
