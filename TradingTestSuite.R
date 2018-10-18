@@ -231,6 +231,31 @@ foreach(i = 1:length(ts)) %do%
 # getSymbols(Symbols = Symbols,
 #            from = Sys.Date() - 365 * 30)
 
+# for (symbol in Symbols)
+# {
+#   # +------------------------------------------------------------------
+#   # | Search by name for an object. The object found is returned.
+#   # +------------------------------------------------------------------
+#   
+#   symbol.data <- get(symbol)
+#   
+#   # +------------------------------------------------------------------
+#   # | Adjust all columns of an OHLC object for split and dividend.
+#   # +------------------------------------------------------------------
+#   
+#   symbol.data.adj <- adjustOHLC(x = symbol.data,
+#                                 use.Adjusted = TRUE)
+#   
+#   # +------------------------------------------------------------------
+#   # | Assign a value to a name in an environment. This function is 
+#   # | invoked for its side effect, which is assigning value to the 
+#   # | variable x.
+#   # +------------------------------------------------------------------
+#   
+#   assign(x = symbol,
+#          value = symbol.data.adj)
+# }
+
 name <- 'Trading'
 currency <- 'USD'
 initEq <- 100000 * length(Symbols)
@@ -301,7 +326,7 @@ for(primary_id in Symbols)
 add.indicator(strategy = name,
               name = 'WinDoPar',
               arguments = list(x = quote(OHLC(mktdata)),
-                               n = 750,
+                               n = 500,
                                w = 'run',
                                fun = LOESS_trendIndicator),
               label = 'pti',
