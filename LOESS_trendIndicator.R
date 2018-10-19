@@ -33,7 +33,7 @@ Sys.setenv(TZ = 'UTC')
 # | or connection or expressions directly.
 # +------------------------------------------------------------------
 
-# source()
+source('LogisticGaussianFit.R')
 
 # +------------------------------------------------------------------
 
@@ -119,25 +119,29 @@ LOESS_trendIndicator <- function(
     local.reg <- LOESS_smoother(ts.xts = price,
                                 span = i / 100,
                                 n.sd = 2)
-    det.price.dist <- coredata(price - local.reg$smooth)
-    p.det.price.dist <- det.price.dist[det.price.dist > 0]
-    det.price <- last(det.price.dist)
-    d.local.reg <- last(diff(log(local.reg$smooth)))
-    return(list(trend = d.local.reg,
-                p.det.price.dist = p.det.price.dist,
-                det.price = max(0, det.price)))
+    smoother <- local.reg$smooth
+    detrended.price <- price - smoother
+    p.detrended.price <- coredata(detrended.price[detrended.price > 0])
+    
+    # +------------------------------------------------------------------
+    # | Returns the sample ranks of the values in a vector. A numeric
+    # | vector of the same length as x with names copied from x is 
+    # | returned.
+    # +------------------------------------------------------------------
+    
+    pct <- last(rank(p.detrended.price)) / length(p.detrended.price)
+    
+    d.local.reg <- last(diff(log(smoother)))
+    return(list(d.local.reg = d.local.reg,
+                pct = pct))
   }
   trends <- foreach(i = 1:length(ten.wises.response), .combine = c) %do%
   {
-    return(ten.wises.response[[i]]$trend)
+    return(ten.wises.response[[i]]$d.local.reg)
   }
-  p.det.price.dists <- foreach(i = 1:length(ten.wises.response), .combine = c) %do%
+  pcts <- foreach(i = 1:length(ten.wises.response), .combine = c) %do%
   {
-    return(ten.wises.response[[i]]$p.det.price.dist)
-  }
-  det.prices <- foreach(i = 1:length(ten.wises.response), .combine = c) %do%
-  {
-    return(ten.wises.response[[i]]$det.price)
+    return(ten.wises.response[[i]]$pct)
   }
   
   # +------------------------------------------------------------------
@@ -147,12 +151,9 @@ LOESS_trendIndicator <- function(
   # +------------------------------------------------------------------
   
   trend.dens <- density(trends)
-  p.det.price.dens <- density(p.det.price.dists)
-  det.prices.dens <- density(det.prices)
+  pct.dens <- density(pcts)
   
-  det.prices.peak <- which.max(det.prices.dens$y)
   pos.dens <- sum(trend.dens$y[trend.dens$x >= 0] * diff(trend.dens$x[trend.dens$x >= 0]))
-  neg.dens <- sum(p.det.price.dens$y[p.det.price.dens$x < p.det.price.dens$x[det.prices.peak]] * diff(p.det.price.dens$x[p.det.price.dens$x < p.det.price.dens$x[det.prices.peak]]))
-  p <- max(0, pos.dens - neg.dens)
-  return(2 * p - 1)
+  p <- pos.dens - pct.dens$x[which.max(pct.dens$y)]
+  return(max(0, 2 * p - 1))
 }
