@@ -463,7 +463,7 @@ for (symbol in Symbols)
 
 R <- PortfReturns(Account = name)
 
-R$Tot.DailyEqPl <- rowSums(R)
+R$Tot.DailyEqPl <- rowMeans(R)
 
 # +------------------------------------------------------------------
 # | Retrieves an account object from the .blotter environment. Useful
