@@ -114,13 +114,30 @@ LOESS_trendIndicator <- function(
   
   plan(multiprocess)
   
-  ten.wises.response <- foreach(i = seq(from = 5, to = 99, length.out = 10), .combine = c) %dopar%
+  ten.wises.response <- foreach(i = seq(from = 5, to = 99, length.out = 10)) %dopar%
   {
     local.reg <- LOESS_smoother(ts.xts = price,
                                 span = i / 100,
                                 n.sd = 2)
+    det.price.dist <- coredata(price - local.reg$smooth)
+    p.det.price.dist <- det.price.dist[det.price.dist > 0]
+    det.price <- last(det.price.dist)
     d.local.reg <- last(diff(log(local.reg$smooth)))
-    return(d.local.reg)
+    return(list(trend = d.local.reg,
+                p.det.price.dist = p.det.price.dist,
+                det.price = max(0, det.price)))
+  }
+  trends <- foreach(i = 1:length(ten.wises.response), .combine = c) %do%
+  {
+    return(ten.wises.response[[i]]$trend)
+  }
+  p.det.price.dists <- foreach(i = 1:length(ten.wises.response), .combine = c) %do%
+  {
+    return(ten.wises.response[[i]]$p.det.price.dist)
+  }
+  det.prices <- foreach(i = 1:length(ten.wises.response), .combine = c) %do%
+  {
+    return(ten.wises.response[[i]]$det.price)
   }
   
   # +------------------------------------------------------------------
@@ -129,9 +146,13 @@ LOESS_trendIndicator <- function(
   # | bandwidth for univariate observations.
   # +------------------------------------------------------------------
   
-  dens <- density(ten.wises.response)
+  trend.dens <- density(trends)
+  p.det.price.dens <- density(p.det.price.dists)
+  det.prices.dens <- density(det.prices)
   
-  pos.dens <- sum(dens$y[dens$x >= 0] * diff(dens$x[dens$x >= 0]))
-  neg.dens <- sum(dens$y[dens$x < 0] * diff(dens$x[dens$x < 0]))
-  return(2 * pos.dens - 1)
+  det.prices.peak <- which.max(det.prices.dens$y)
+  pos.dens <- sum(trend.dens$y[trend.dens$x >= 0] * diff(trend.dens$x[trend.dens$x >= 0]))
+  neg.dens <- sum(p.det.price.dens$y[p.det.price.dens$x < p.det.price.dens$x[det.prices.peak]] * diff(p.det.price.dens$x[p.det.price.dens$x < p.det.price.dens$x[det.prices.peak]]))
+  p <- max(0, pos.dens - neg.dens)
+  return(2 * p - 1)
 }
