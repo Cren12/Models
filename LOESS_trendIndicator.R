@@ -114,35 +114,16 @@ LOESS_trendIndicator <- function(
   
   plan(multiprocess)
   
-  ten.wises.response <- foreach(i = seq(from = 5, to = 99, length.out = 10)) %dopar%
+  ten.wises.response <- foreach(i = seq(from = 5, to = 99, length.out = 10), .combine = c) %dopar%
   {
     local.reg <- LOESS_smoother(ts.xts = price,
                                 span = i / 100,
                                 n.sd = 2)
     smoother <- local.reg$smooth
-    detrended.price <- price - smoother
-    p.detrended.price <- coredata(detrended.price[detrended.price > 0])
-    
-    # +------------------------------------------------------------------
-    # | Returns the sample ranks of the values in a vector. A numeric
-    # | vector of the same length as x with names copied from x is 
-    # | returned.
-    # +------------------------------------------------------------------
-    
-    pct <- last(rank(p.detrended.price)) / length(p.detrended.price)
-    
     d.local.reg <- last(diff(log(smoother)))
-    return(list(d.local.reg = d.local.reg,
-                pct = pct))
+    return(d.local.reg)
   }
-  trends <- foreach(i = 1:length(ten.wises.response), .combine = c) %do%
-  {
-    return(ten.wises.response[[i]]$d.local.reg)
-  }
-  pcts <- foreach(i = 1:length(ten.wises.response), .combine = c) %do%
-  {
-    return(ten.wises.response[[i]]$pct)
-  }
+  trends <- ten.wises.response
   
   # +------------------------------------------------------------------
   # | The (S3) generic function density computes kernel density 
@@ -151,9 +132,8 @@ LOESS_trendIndicator <- function(
   # +------------------------------------------------------------------
   
   trend.dens <- density(trends)
-  pct.dens <- density(pcts)
-  
+
   pos.dens <- sum(trend.dens$y[trend.dens$x >= 0] * diff(trend.dens$x[trend.dens$x >= 0]))
-  p <- pos.dens - pct.dens$x[which.max(pct.dens$y)]
+  p <- pos.dens
   return(max(0, 2 * p - 1))
 }
