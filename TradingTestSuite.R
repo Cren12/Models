@@ -36,6 +36,7 @@ require(quantstrat)
 
 source('WinDoPar.R')
 source('LOESS_trendIndicator.R')
+source('RSI_dens.R')
 
 # +------------------------------------------------------------------
 
@@ -326,9 +327,9 @@ for(primary_id in Symbols)
 add.indicator(strategy = name,
               name = 'WinDoPar',
               arguments = list(x = quote(OHLC(mktdata)),
-                               n = 500,
+                               n = 300,
                                w = 'run',
-                               fun = LOESS_trendIndicator),
+                               fun = RSI_dens),
               label = 'pti',
               store = TRUE)
 add.indicator(strategy = name,
@@ -345,20 +346,12 @@ add.indicator(strategy = name,
 # +------------------------------------------------------------------
 
 add.signal(strategy = name,
-           name = 'sigThreshold',
-           arguments = list(column = 'pti',
-                            threshold = 0,
-                            relationship = 'gte',
-                            cross = FALSE),
+           name = 'sigPeak',
+           arguments = list(data = mktdata,
+                            column = 'pti',
+                            direction = 'peak',
+                            label = 'pti.peak'),
            label = 'pti.buy',
-           store = TRUE)
-add.signal(strategy = name,
-           name = 'sigThreshold',
-           arguments = list(column = 'pti',
-                            threshold = 0,
-                            relationship = 'gte',
-                            cross = FALSE),
-           label = 'pti.sell',
            store = TRUE)
 
 # +------------------------------------------------------------------
@@ -368,13 +361,13 @@ add.signal(strategy = name,
 
 add.rule(strategy = name,
          name = 'ruleSignal',
-         arguments = list(sigcol = 'pti.buy',
+         arguments = list(sigcol = 'pti.buy.peak.sig.pti.buy',
                           sigval = TRUE,
                           orderqty = 1,
                           ordertype = 'market',
                           orderside = 'long',
                           replace = TRUE,
-                          osFUN = osVarSize,
+                          osFUN = osTotSize,
                           acct.name = name,
                           TxnFees = TxnFees),
          label = 'pti.buy.enter',
@@ -382,33 +375,19 @@ add.rule(strategy = name,
          store = TRUE)
 add.rule(strategy = name,
          name = 'ruleSignal',
-         arguments = list(sigcol = 'pti.sell',
+         arguments = list(sigcol = 'pti.buy',
                           sigval = TRUE,
-                          orderqty = 1,
-                          ordertype = 'market',
+                          orderqty = 'all',
+                          ordertype = 'stoptrailing', # stoplimit # stoptrailing
                           orderside = 'long',
-                          replace = TRUE,
-                          osFUN = osVarSize,
-                          acct.name = name,
+                          orderset = 'stop',
+                          threshold = quote(-mktdata[timestamp, 'X1.sigma']),
+                          tmult = TRUE,
                           TxnFees = TxnFees),
-         label = 'pti.buy.enter',
-         type = 'exit',
+         label = 'pti.buy.chain',
+         type = 'chain',
+         parent = 'pti.buy.enter',
          store = TRUE)
-# add.rule(strategy = name,
-#          name = 'ruleSignal',
-#          arguments = list(sigcol = 'pti.buy',
-#                           sigval = TRUE,
-#                           orderqty = 'all',
-#                           ordertype = 'stoptrailing', # stoplimit # stoptrailing
-#                           orderside = 'long',
-#                           orderset = 'stop',
-#                           threshold = quote(-mktdata[timestamp, 'X1.sigma']),
-#                           tmult = TRUE,
-#                           TxnFees = TxnFees),
-#          label = 'pti.buy.chain',
-#          type = 'chain',
-#          parent = 'pti.buy.enter',
-#          store = TRUE)
 
 # +------------------------------------------------------------------
 # | This function is the wrapper that holds together the execution of
@@ -455,6 +434,16 @@ for (symbol in Symbols)
 }
 
 # +------------------------------------------------------------------
+# | Retrieves an account object from the .blotter environment. Useful
+# | for local examination or charting, or storing interim results for
+# | later reference.
+# +------------------------------------------------------------------
+
+account <- getAccount(Account = name)
+
+plot(cumsum(account$summary$Realized.PL)[cumsum(account$summary$Realized.PL) != 0], main = 'Realized PL')
+
+# +------------------------------------------------------------------
 # | This function (for now) calculates return on initial equity for 
 # | each instrument in the portfolio or portfolios that make up an 
 # | account. These columns will be additive to return on capital of 
@@ -466,16 +455,6 @@ R <- PortfReturns(Account = name)
 R$Tot.DailyEqPl <- rowMeans(R)
 
 # +------------------------------------------------------------------
-# | Retrieves an account object from the .blotter environment. Useful
-# | for local examination or charting, or storing interim results for
-# | later reference.
-# +------------------------------------------------------------------
-
-account <- getAccount(Account = name)
-
-plot(cumsum(account$summary$Realized.PL)[cumsum(account$summary$Realized.PL) != 0], main = 'Realized PL')
-
-# +------------------------------------------------------------------
 # | For a set of returns, create a wealth index chart, bars for 
 # | per-period performance, and underwater chart for drawdown.
 # +------------------------------------------------------------------
@@ -485,7 +464,8 @@ charts.PerformanceSummary(R = R,
                           main = 'Trading performance')
 
 # +------------------------------------------------------------------
-# | Get the order book object.
+# | This function calculates trade-level statistics on a symbol or 
+# | symbols within a portfolio or portfolios.
 # +------------------------------------------------------------------
 
-getOrderBook(portfolio = name)
+as.data.frame(t(tradeStats(Portfolios = name)))
