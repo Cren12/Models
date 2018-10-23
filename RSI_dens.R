@@ -53,7 +53,7 @@ RSI_dens <- function(
   price <- reclass(x = rowMeans(ohlc),
                    match.to = ohlc)
   
-  
+  trend.prob <- LOESS_trendIndicator(ohlc = ohlc)
   
   # +------------------------------------------------------------------
   # | Register the doFuture parallel adaptor to be used by the foreach 
@@ -103,5 +103,5 @@ RSI_dens <- function(
   wpr.over.80.dens <- length(oversolds$WPR[oversolds$WPR > .8]) / length(oversolds$WPR)
   cci.under.minus.100.dens <- length(oversolds$CCI[oversolds$CCI < -100]) / length(oversolds$CCI)
   oversold.prob <- 1 - (1 - rsi.under.30.dens) * (1 - wpr.over.80.dens) * (1 - cci.under.minus.100.dens)
-  return(max(0, 2 * oversold.prob - 1))
+  return(max(0, 2 * oversold.prob * trend.prob - 1))
 }
