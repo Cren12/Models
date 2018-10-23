@@ -33,7 +33,7 @@ Sys.setenv(TZ = 'UTC')
 # | or connection or expressions directly.
 # +------------------------------------------------------------------
 
-source('LOESS_trendIndicator.R')
+# source('LOESS_trendIndicator.R')
 
 # +------------------------------------------------------------------
 
@@ -53,7 +53,7 @@ RSI_dens <- function(
   price <- reclass(x = rowMeans(ohlc),
                    match.to = ohlc)
   
-  trend.prob <- LOESS_trendIndicator(ohlc = ohlc)
+  
   
   # +------------------------------------------------------------------
   # | Register the doFuture parallel adaptor to be used by the foreach 
@@ -71,11 +71,19 @@ RSI_dens <- function(
   
   plan(multiprocess)
   
-  rsis <- foreach(n = from.n:to.n, .combine = c) %dopar%
+  oversolds <- foreach(n = from.n:to.n, .combine = rbind.data.frame) %dopar%
   {
     rsi <- RSI(price = price,
                n = n)
-    return(last(rsi))
+    wpr <- WPR(HLC = ohlc[, c('High', 'Low', 'Close')],
+               n = n)
+    cci <- CCI(HLC = ohlc[, c('High', 'Low', 'Close')],
+               n = n)
+    value <- cbind.data.frame(as.numeric(last(rsi)),
+                              as.numeric(last(wpr)),
+                              as.numeric(last(cci)))
+    colnames(value) <- c('RSI', 'WPR', 'CCI')
+    return(value)
   }
   
   # +------------------------------------------------------------------
@@ -84,8 +92,16 @@ RSI_dens <- function(
   # | bandwidth for univariate observations.
   # +------------------------------------------------------------------
   
-  rsis.dens <- density(rsis)
+  # rsis.dens <- density(oversolds$RSI)
+  # wprs.dens <- density(oversolds$WPR)
+  # ccis.dens <- density(oversolds$CCI)
   
-  under.30.dens <- sum(rsis.dens$y[rsis.dens$x < 30] * diff(rsis.dens$x[rsis.dens$x < 30]))
-  return(under.30.dens * ifelse(trend.prob >= .5, 1, 0))
+  # rsi.under.30.dens <- sum(rsis.dens$y[rsis.dens$x < 30] * diff(rsis.dens$x[rsis.dens$x < 30]))
+  # wpr.over.80.dens <- sum(wprs.dens$y[wprs.dens$x > .8] * diff(wprs.dens$x[wprs.dens$x > .8]))
+  # cci.under.minus.100.dens <- sum(ccis.dens$y[ccis.dens$x < -100] * diff(ccis.dens$x[ccis.dens$x < -100]))
+  rsi.under.30.dens <- length(oversolds$RSI[oversolds$RSI < 30]) / length(oversolds$RSI)
+  wpr.over.80.dens <- length(oversolds$WPR[oversolds$WPR > .8]) / length(oversolds$WPR)
+  cci.under.minus.100.dens <- length(oversolds$CCI[oversolds$CCI < -100]) / length(oversolds$CCI)
+  oversold.prob <- 1 - (1 - rsi.under.30.dens) * (1 - wpr.over.80.dens) * (1 - cci.under.minus.100.dens)
+  return(max(0, 2 * oversold.prob - 1))
 }
