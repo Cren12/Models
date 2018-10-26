@@ -51,6 +51,7 @@ osVarSize <- function(
   ruletype, 
   digits = 0,
   acct.name,
+  col.name
   ...
 )
 {
@@ -107,7 +108,7 @@ osVarSize <- function(
   {
     avail.liq <- equity
   }
-  theor.value <- ifelse(is.na(mktdata[timestamp, 5]), 0, mktdata[timestamp, 5] * equity)
+  theor.value <- ifelse(is.na(mktdata[timestamp, col.name]), 0, mktdata[timestamp, col.name] * equity)
   pos.qty <- max(c(0, as.numeric(portfolio.object$symbols[[symbol]]$posPL$Pos.Qty[as.character(timestamp), ])))
   pos.avg.cost <- max(c(0, as.numeric(portfolio.object$symbols[[symbol]]$posPL$Pos.Avg.Cost[as.character(timestamp), ])))
   pos.value <- pos.qty * pos.avg.cost
@@ -257,6 +258,15 @@ foreach(i = 1:length(ts)) %do%
 #          value = symbol.data.adj)
 # }
 
+# data <- Make_mktdata(TLT, 2.5)
+# system.time(
+#   ciao <- WinDoPar(x = data, n = 750, w = 'exp', fun = ClassifyLastObs)
+# )
+# assign(x = 'TLT',
+#        value = cbind(get('TLT'), ciao))
+# colnames(HYG) <- c('Open', 'High', 'Low', 'Close', 'X1.pti')
+# Symbols <- 'TLT'
+
 name <- 'Trading'
 currency <- 'USD'
 initEq <- 100000 * length(Symbols)
@@ -324,20 +334,20 @@ for(primary_id in Symbols)
 # | models.
 # +------------------------------------------------------------------
 
-add.indicator(strategy = name,
-              name = 'WinDoPar',
-              arguments = list(x = quote(OHLC(mktdata)),
-                               n = 300,
-                               w = 'run',
-                               fun = RSI_dens),
-              label = 'pti',
-              store = TRUE)
+# add.indicator(strategy = name,
+#               name = 'WinDoPar',
+#               arguments = list(x = quote(mktdata[, -c(1:4)]),
+#                                n = 750,
+#                                w = 'exp',
+#                                fun = ClassifyLastObs),
+#               label = 'pti',
+#               store = TRUE)
 add.indicator(strategy = name,
               name = 'volatility',
               arguments = list(OHLC = quote(OHLC(mktdata)),
                                n = 5,
                                calc = 'yang.zhang',
-                               N = 3),
+                               N = 2),
               label = 'sigma',
               store = TRUE)
 
@@ -346,11 +356,12 @@ add.indicator(strategy = name,
 # +------------------------------------------------------------------
 
 add.signal(strategy = name,
-           name = 'sigPeak',
+           name = 'sigThreshold',
            arguments = list(data = quote(mktdata),
                             column = 'pti',
-                            direction = 'peak',
-                            label = 'pti.peak'),
+                            threshold = .05,
+                            relationship = 'lt',
+                            cross = TRUE),
            label = 'pti.buy',
            store = TRUE)
 
@@ -361,7 +372,7 @@ add.signal(strategy = name,
 
 add.rule(strategy = name,
          name = 'ruleSignal',
-         arguments = list(sigcol = 'pti.buy.peak.sig.pti.buy',
+         arguments = list(sigcol = 'pti.buy',
                           sigval = TRUE,
                           orderqty = 1,
                           ordertype = 'market',
@@ -369,13 +380,14 @@ add.rule(strategy = name,
                           replace = TRUE,
                           osFUN = osVarSize,
                           acct.name = name,
+                          col.name = 'X1.pti',
                           TxnFees = TxnFees),
          label = 'pti.buy.enter',
          type = 'enter',
          store = TRUE)
 add.rule(strategy = name,
          name = 'ruleSignal',
-         arguments = list(sigcol = 'pti.buy.peak.sig.pti.buy',
+         arguments = list(sigcol = 'pti.buy',
                           sigval = TRUE,
                           orderqty = 'all',
                           ordertype = 'stoptrailing', # stoplimit # stoptrailing
