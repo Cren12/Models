@@ -102,7 +102,7 @@ osVarSize <- function(
   {
     avail.liq <- equity
   }
-  theor.value <- ifelse(is.na(mktdata[timestamp, 5]), 0, mktdata[timestamp, 5] * equity)
+  theor.value <- ifelse(is.na(mktdata[timestamp, col.name]), 0, mktdata[timestamp, col.name] * equity)
   pos.qty <- max(c(0, as.numeric(portfolio.object$symbols[[symbol]]$posPL$Pos.Qty[as.character(timestamp), ])))
   pos.avg.cost <- max(c(0, as.numeric(portfolio.object$symbols[[symbol]]$posPL$Pos.Avg.Cost[as.character(timestamp), ])))
   pos.value <- pos.qty * pos.avg.cost
