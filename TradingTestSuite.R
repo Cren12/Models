@@ -258,13 +258,18 @@ foreach(i = 1:length(ts)) %do%
 #          value = symbol.data.adj)
 # }
 
-# data <- Make_mktdata(TLT, 2.5)
+# TLT <- OHLC(TLT)
+# colnames(TLT) <- c('Open', 'High', 'Low', 'Close')
+# data <- Make_mktdata(ohlc = TLT,
+#                      change = last(TTR::volatility(OHLC = TLT,
+#                                                    n = nrow(TLT) - 1,
+#                                                    calc = 'yang.zhang')) * 100 / 2)
 # system.time(
 #   ciao <- WinDoPar(x = data, n = 750, w = 'exp', fun = ClassifyLastObs)
 # )
 # assign(x = 'TLT',
 #        value = cbind(get('TLT'), ciao))
-# colnames(HYG) <- c('Open', 'High', 'Low', 'Close', 'X1.pti')
+# colnames(TLT) <- c('Open', 'High', 'Low', 'Close', 'X1.pti')
 # Symbols <- 'TLT'
 
 name <- 'Trading'
