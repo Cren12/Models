@@ -57,31 +57,50 @@ ClassifyLastObs <- function(
       pca <- prcomp(x = X,
                     scale. = TRUE)
       
-      # +------------------------------------------------------------------
-      # | neuralnet is used to train neural networks. neuralnet returns an
-      # | object of class nn.
-      # +------------------------------------------------------------------
+      formula <- y ~ PC1 + PC2 + PC3 + PC4 + PC5
       
-      nnet <- neuralnet(formula = y ~ PC1 + PC2 + PC3 + PC4,
-                        data = cbind.data.frame(y, pca$x[, 1:4]),
-                        hidden = 2,
-                        linear.output = FALSE)
-      
-      ## Complete model:
-      # nnet1 <- neuralnet(formula = as.formula(substr(paste('y ~', paste(colnames(X), '+ ', collapse = '')), 1, nchar(paste('y ~', paste(colnames(X), '+ ', collapse = ''))) - 3)),
-      #                    data = cbind.data.frame(y, X),
-      #                    hidden = 2)
-      
-      # +------------------------------------------------------------------
-      # | compute, a method for objects of class nn, typically produced by
-      # | neuralnet. Computes the outputs of all neurons for specific 
-      # | arbitrary covariate vectors given a trained neural network.
-      # +------------------------------------------------------------------
-      
-      out <- compute(x = nnet,
-                     covariate = pca$x[, 1:4])
-      
-      return(as.numeric(last(out$net.result)))
+      if (nnet)
+      {
+        
+        # +------------------------------------------------------------------
+        # | neuralnet is used to train neural networks. neuralnet returns an
+        # | object of class nn.
+        # +------------------------------------------------------------------
+        
+        nnet <- neuralnet(formula = formula,
+                          data = cbind.data.frame(y, pca$x[, 1:5]),
+                          hidden = 2,
+                          linear.output = FALSE)
+        
+        ## Complete model:
+        # nnet1 <- neuralnet(formula = as.formula(substr(paste('y ~', paste(colnames(X), '+ ', collapse = '')), 1, nchar(paste('y ~', paste(colnames(X), '+ ', collapse = ''))) - 3)),
+        #                    data = cbind.data.frame(y, X),
+        #                    hidden = 2)
+        
+        # +------------------------------------------------------------------
+        # | compute, a method for objects of class nn, typically produced by
+        # | neuralnet. Computes the outputs of all neurons for specific 
+        # | arbitrary covariate vectors given a trained neural network.
+        # +------------------------------------------------------------------
+        
+        out <- compute(x = nnet,
+                       covariate = pca$x[, 1:5])
+        
+        return(as.numeric(last(out$net.result)))
+      } else {
+        
+        # +------------------------------------------------------------------
+        # | glm is used to fit generalized linear models, specified by giving
+        # | a symbolic description of the linear predictor and a description
+        # | of the error distribution. glm returns an object of class 
+        # | inheriting from "glm" which inherits from the class "lm".
+        # +------------------------------------------------------------------
+        
+        model <- glm(formula = formula,
+                     family = binomial(link = 'logit'),
+                     data = cbind.data.frame(y, pca$x[, 1:5]))
+        
+        return(last(model$fitted.values))
     },
     error = function(e){
       return(0)
