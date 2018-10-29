@@ -39,7 +39,8 @@ data <- na.omit(Make_mktdata(ohlc = ohlc,
                              change = change))
 
 ClassifyLastObs <- function(
-  data # A data frame containing the variables
+  data, # A data frame containing the variables
+  nnet = TRUE
 )
 {
   data <- na.omit(data)
