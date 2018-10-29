@@ -102,6 +102,7 @@ ClassifyLastObs <- function(
                      data = cbind.data.frame(y, pca$x[, 1:5]))
         
         return(last(model$fitted.values))
+      }
     },
     error = function(e){
       return(0)
