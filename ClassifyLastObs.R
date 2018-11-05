@@ -35,12 +35,9 @@ source('Make_mktdata.R')
 
 # +------------------------------------------------------------------
 
-data <- na.omit(Make_mktdata(ohlc = ohlc,
-                             change = change))
-
 ClassifyLastObs <- function(
   data, # A data frame containing the variables
-  nnet = TRUE
+  classifier = c('nnet', 'logistic', 'svm')
 )
 {
   data <- na.omit(data)
@@ -54,13 +51,13 @@ ClassifyLastObs <- function(
       # | Performs a principal components analysis on the given data matrix
       # | and returns the results as an object of class prcomp.
       # +------------------------------------------------------------------
-      
+        
       pca <- prcomp(x = X,
                     scale. = TRUE)
-      
+        
       formula <- y ~ PC1 + PC2 + PC3 + PC4 + PC5
       
-      if (nnet)
+      if (classifier == 'nnet')
       {
         
         # +------------------------------------------------------------------
@@ -70,7 +67,7 @@ ClassifyLastObs <- function(
         
         nnet <- neuralnet(formula = formula,
                           data = cbind.data.frame(y, pca$x[, 1:5]),
-                          hidden = 2,
+                          hidden = 5,
                           linear.output = FALSE)
         
         ## Complete model:
@@ -88,7 +85,8 @@ ClassifyLastObs <- function(
                        covariate = pca$x[, 1:5])
         
         return(as.numeric(last(out$net.result)))
-      } else {
+        
+      } else if (classifier == 'logistic') {
         
         # +------------------------------------------------------------------
         # | glm is used to fit generalized linear models, specified by giving
@@ -102,6 +100,22 @@ ClassifyLastObs <- function(
                      data = cbind.data.frame(y, pca$x[, 1:5]))
         
         return(last(model$fitted.values))
+        
+      } else if (classifier == 'svm') {
+        
+        # +------------------------------------------------------------------
+        # | This generic function tunes hyperparameters of statistical 
+        # | methods using a grid search over supplied parameter ranges.
+        # +------------------------------------------------------------------
+        
+        svm.tune <- tune(method = svm,
+                         train.x = Minimum.point ~ .,
+                         data = cbind.data.frame(y, pca$x[, 1:5]),
+                         ranges = list(cost = 10 ^ (-1:2),
+                                       gamma = c(.5, 1 ,2)))
+        
+        best.model.fitted <- svm.tune$best.model$fitted
+        return(last(best.model.fitted))
       }
     },
     error = function(e){
