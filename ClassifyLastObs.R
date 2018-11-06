@@ -1,4 +1,5 @@
-packages <- c('neuralnet')
+packages <- c('neuralnet',
+              'e1071')
 
 # +------------------------------------------------------------------
 # | library and require load and attach add-on packages. Download and
