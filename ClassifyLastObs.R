@@ -55,7 +55,7 @@ ClassifyLastObs <- function(
       pca <- prcomp(x = X,
                     scale. = TRUE)
         
-      formula <- y ~ PC1 + PC2 + PC3 + PC4 + PC5
+      formula <- Minimum.point ~ PC1 + PC2 + PC3 + PC4 + PC5
       
       if (classifier == 'nnet')
       {
@@ -109,10 +109,13 @@ ClassifyLastObs <- function(
         # +------------------------------------------------------------------
         
         svm.tune <- tune(method = svm,
-                         train.x = Minimum.point ~ .,
+                         train.x = as.factor(Minimum.point) ~ .,
                          data = cbind.data.frame(y, pca$x[, 1:5]),
-                         ranges = list(cost = 10 ^ (-1:2),
-                                       gamma = c(.5, 1 ,2)))
+                         ranges = list(cost = 1,
+                                       gamma = seq(from = 0,
+                                                   to = 1,
+                                                   length.out = 5)),
+                         kernel = 'sigmoid')
         
         best.model.fitted <- svm.tune$best.model$fitted
         return(last(best.model.fitted))
