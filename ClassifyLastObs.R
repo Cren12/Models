@@ -116,7 +116,8 @@ ClassifyLastObs <- function(
                                        gamma = seq(from = 0,
                                                    to = 1,
                                                    length.out = 5)),
-                         kernel = 'sigmoid')
+                         kernel = 'radial',
+                         type = 'nu-classification')
         
         best.model.fitted <- svm.tune$best.model$fitted
         return(last(best.model.fitted))
