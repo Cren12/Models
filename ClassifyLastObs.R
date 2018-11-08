@@ -1,5 +1,6 @@
 packages <- c('neuralnet',
-              'e1071')
+              'e1071',
+              'randomForest')
 
 # +------------------------------------------------------------------
 # | library and require load and attach add-on packages. Download and
@@ -38,7 +39,7 @@ source('Make_mktdata.R')
 
 ClassifyLastObs <- function(
   data, # A data frame containing the variables
-  classifier = c('nnet', 'logistic', 'svm')
+  classifier = c('nnet', 'logistic', 'svm', 'rf')
 )
 {
   data <- na.omit(data)
@@ -120,7 +121,22 @@ ClassifyLastObs <- function(
                          type = 'nu-classification')
         
         best.model.fitted <- svm.tune$best.model$fitted
+        best.model.fitted <- as.numeric(levels(best.model.fitted))[best.model.fitted]
         return(last(best.model.fitted))
+        
+      } else if (classifier == 'rf') {
+        
+        # +------------------------------------------------------------------
+        # | randomForest implements Breiman's random forest algorithm (based
+        # | on Breiman and Cutler's original Fortran code) for classification.
+        # +------------------------------------------------------------------
+        
+        random.forest <- randomForest(formula = as.factor(Minimum.point) ~ .,
+                                      data = data)
+        
+        random.forest.fit <- random.forest$predicted
+        random.forest.fit <- as.numeric(levels(random.forest.fit))[random.forest.fit]
+        return(last(random.forest.fit))
       }
     },
     error = function(e){
