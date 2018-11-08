@@ -361,12 +361,11 @@ add.indicator(strategy = name,
 # +------------------------------------------------------------------
 
 add.signal(strategy = name,
-           name = 'sigThreshold',
-           arguments = list(data = quote(mktdata),
+           name = 'sigPeak',
+           arguments = list(label = 'pti.peak',
+                            data = mktdata,
                             column = 'pti',
-                            threshold = .05,
-                            relationship = 'lt',
-                            cross = TRUE),
+                            direction = 'peak'),
            label = 'pti.buy',
            store = TRUE)
 
@@ -377,7 +376,7 @@ add.signal(strategy = name,
 
 add.rule(strategy = name,
          name = 'ruleSignal',
-         arguments = list(sigcol = 'pti.buy',
+         arguments = list(sigcol = 'pti.buy.peak.sig.pti.buy',
                           sigval = TRUE,
                           orderqty = 1,
                           ordertype = 'market',
@@ -392,18 +391,18 @@ add.rule(strategy = name,
          store = TRUE)
 add.rule(strategy = name,
          name = 'ruleSignal',
-         arguments = list(sigcol = 'pti.buy',
+         arguments = list(sigcol = 'pti.buy.peak.sig.pti.buy',
                           sigval = TRUE,
-                          orderqty = 'all',
-                          ordertype = 'stoptrailing', # stoplimit # stoptrailing
+                          orderqty = 1,
+                          ordertype = 'market',
                           orderside = 'long',
-                          orderset = 'stop',
-                          threshold = quote(-mktdata[timestamp, 'X1.sigma']),
-                          tmult = TRUE,
+                          replace = TRUE,
+                          osFUN = osVarSize,
+                          acct.name = name,
+                          col.name = 'X1.pti',
                           TxnFees = TxnFees),
-         label = 'pti.buy.chain',
-         type = 'chain',
-         parent = 'pti.buy.enter',
+         label = 'pti.buy.exit',
+         type = 'exit',
          store = TRUE)
 
 # +------------------------------------------------------------------
