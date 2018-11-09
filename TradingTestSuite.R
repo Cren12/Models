@@ -274,8 +274,8 @@ foreach(i = 1:length(ts)) %do%
 
 name <- 'Trading'
 currency <- 'USD'
-initEq <- 100000 * length(Symbols)
-TxnFees <- 0
+initEq <- 1000 * length(Symbols)
+TxnFees <- -4
 Sys.setenv(TZ = 'UTC')
 
 # +------------------------------------------------------------------
@@ -344,8 +344,19 @@ for(primary_id in Symbols)
 #               arguments = list(x = quote(mktdata[, -c(1:4)]),
 #                                n = 750,
 #                                w = 'exp',
-#                                fun = ClassifyLastObs),
+#                                fun = ClassifyLastObs,
+#                                nnet = FALSE),
 #               label = 'pti',
+#               store = TRUE)
+# add.indicator(strategy = name,
+#               name = 'WinDoPar',
+#               arguments = list(x = quote(mktdata[, 'X1.pti']),
+#                                n = 250,
+#                                w = 'run',
+#                                fun = 'quantile',
+#                                probs = .9,
+#                                na.rm = TRUE),
+#               label = 'quant',
 #               store = TRUE)
 add.indicator(strategy = name,
               name = 'volatility',
@@ -360,10 +371,18 @@ add.indicator(strategy = name,
 # | This adds a signal definition to a strategy object.
 # +------------------------------------------------------------------
 
+# add.signal(strategy = name,
+#            name = 'sigCrossover',
+#            arguments = list(data = quote(mktdata),
+#                             columns = c('pti', 'quant'),
+#                             relationship = 'gt',
+#                             cross = TRUE),
+#            label = 'pti.buy',
+#            store = TRUE)
 add.signal(strategy = name,
            name = 'sigPeak',
            arguments = list(label = 'pti.peak',
-                            data = mktdata,
+                            data = quote(mktdata),
                             column = 'pti',
                             direction = 'peak'),
            label = 'pti.buy',
@@ -382,27 +401,42 @@ add.rule(strategy = name,
                           ordertype = 'market',
                           orderside = 'long',
                           replace = TRUE,
-                          osFUN = osVarSize,
+                          osFUN = osTotSize,
                           acct.name = name,
                           col.name = 'X1.pti',
                           TxnFees = TxnFees),
          label = 'pti.buy.enter',
          type = 'enter',
          store = TRUE)
+# add.rule(strategy = name,
+#          name = 'ruleSignal',
+#          arguments = list(sigcol = 'pti.buy.peak.sig.pti.buy',
+#                           sigval = TRUE,
+#                           orderqty = 1,
+#                           ordertype = 'market',
+#                           orderside = 'long',
+#                           replace = TRUE,
+#                           osFUN = osVarSize,
+#                           acct.name = name,
+#                           col.name = 'X1.pti',
+#                           TxnFees = TxnFees),
+#          label = 'pti.buy.exit',
+#          type = 'exit',
+#          store = TRUE)
 add.rule(strategy = name,
          name = 'ruleSignal',
          arguments = list(sigcol = 'pti.buy.peak.sig.pti.buy',
                           sigval = TRUE,
-                          orderqty = 1,
-                          ordertype = 'market',
+                          orderqty = 'all',
+                          ordertype = 'stoptrailing', # stoplimit # stoptrailing
                           orderside = 'long',
-                          replace = TRUE,
-                          osFUN = osVarSize,
-                          acct.name = name,
-                          col.name = 'X1.pti',
+                          orderset = 'stop',
+                          threshold = quote(-mktdata[timestamp, 'X1.sigma']),
+                          tmult = TRUE,
                           TxnFees = TxnFees),
-         label = 'pti.buy.exit',
-         type = 'exit',
+         label = 'pti.buy.chain',
+         type = 'chain',
+         parent = 'pti.buy.enter',
          store = TRUE)
 
 # +------------------------------------------------------------------
@@ -450,16 +484,6 @@ for (symbol in Symbols)
 }
 
 # +------------------------------------------------------------------
-# | Retrieves an account object from the .blotter environment. Useful
-# | for local examination or charting, or storing interim results for
-# | later reference.
-# +------------------------------------------------------------------
-
-account <- getAccount(Account = name)
-
-plot(cumsum(account$summary$Realized.PL)[cumsum(account$summary$Realized.PL) != 0], main = 'Realized PL')
-
-# +------------------------------------------------------------------
 # | This function (for now) calculates return on initial equity for 
 # | each instrument in the portfolio or portfolios that make up an 
 # | account. These columns will be additive to return on capital of 
@@ -471,12 +495,24 @@ R <- PortfReturns(Account = name)
 R$Tot.DailyEqPl <- rowMeans(R)
 
 # +------------------------------------------------------------------
+# | Retrieves an account object from the .blotter environment. Useful
+# | for local examination or charting, or storing interim results for
+# | later reference.
+# +------------------------------------------------------------------
+
+account <- getAccount(Account = name)
+
+dev.new()
+plot(cumsum(account$summary$Realized.PL)[cumsum(account$summary$Realized.PL) != 0], main = 'Realized PL')
+dev.new()
+
+# +------------------------------------------------------------------
 # | For a set of returns, create a wealth index chart, bars for 
 # | per-period performance, and underwater chart for drawdown.
 # +------------------------------------------------------------------
 
-charts.PerformanceSummary(R = R,
-                          ylog = TRUE,
+charts.PerformanceSummary(R = R$Tot.DailyEqPl,
+                          geometric = FALSE,
                           main = 'Trading performance')
 
 # +------------------------------------------------------------------
