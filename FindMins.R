@@ -57,8 +57,6 @@ FindMins <- function(
   
   valleys.index <- findValleys(x = zig.zag)
   
-  hl[, 1] <- 0
-  hl[valleys.index, 1] <- 1
-  colnames(hl) <- c('Minimum.point', 'to_remove')
-  return(hl[, 1])
+  mins <- Lo(hl)[valleys.index - 1]
+  return(mins)
 }
