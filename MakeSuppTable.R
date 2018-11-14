@@ -43,6 +43,7 @@ MakeSuppTable <- function(
 {
   min.points <- FindMins(hl = hl,
                          change = change)
+  tolerance <- mean(Hi(hl) / Lo(hl) - 1)
   
   # +------------------------------------------------------------------
   # | Register the doFuture parallel adaptor to be used by the foreach 
@@ -67,12 +68,13 @@ MakeSuppTable <- function(
       {
         avg <- mean(c(min.points[i], min.points[j]))
         sse <- sum((c(min.points[i], min.points[j]) - avg) ^ 2)
+        distance <- abs(as.numeric(s0) / avg - 1)
         from <- min(c(index(min.points[i])), c(index(min.points[j])))
         to <- max(c(index(min.points[i])), c(index(min.points[j])))
         duration <- index(last(hl)) - to
-        return(cbind(avg, sse, from, to, duration))
+        return(cbind(avg, sse, distance, from, to, duration))
       } else {
-        return(rep(NA, 5))
+        return(rep(NA, 6))
       }
     }
   
@@ -83,25 +85,23 @@ MakeSuppTable <- function(
   
   supp.table <- unique(na.omit(supp.table))
   
-  supp.table <- as.data.frame(supp.table)
-  supp.table$from <- as.Date(supp.table$from)
-  supp.table$to <- as.Date(supp.table$to)
-  to.remove <- foreach(i = 1:nrow(supp.table), .combine = c) %do%
+  rownames(supp.table) <- 1:nrow(supp.table)
+  supp.table.df <- as.data.frame(supp.table)
+  supp.table.df$from <- as.Date(supp.table.df$from)
+  supp.table.df$to <- as.Date(supp.table.df$to)
+  to.remove <- foreach(i = 1:nrow(supp.table.df), .combine = c) %dopar%
   {
-    from <- supp.table$from[i]
-    avg <- supp.table$avg[i]
-    if (any(hl[paste0(from, '/')] < avg * .99))
+    from <- supp.table.df$from[i]
+    avg <- supp.table.df$avg[i]
+    if (any(hl[paste0(from + 1, '/')] < avg * (1 - tolerance)))
     {
       return(i)
     } else {
       return(NA)
     }
   }
-  supp.table.net <- supp.table[-na.omit(to.remove), ]
-  supp.table.net <- supp.table.net[order(supp.table.net$sse * supp.table.net$duration * abs(supp.table.net$avg - as.numeric(last(hl)))), ]
-  weights <- 1 / 1:nrow(supp.table.net)
-  weights <- weights / sum(weights)
-  weight.supp <- sum(weights * supp.table.net$avg)
-  return(weight.supp)
+  supp.table.net <- supp.table.df[-na.omit(to.remove), ]
+  supp.table.net <- supp.table.net[order(supp.table.net$sse * supp.table.net$duration / as.numeric((supp.table.net$to - supp.table.net$from))), ]
+  return(supp.table.net)
 }
 
