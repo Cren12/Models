@@ -1,0 +1,24 @@
+NormalMixBB <- function(ohlc, start.t)
+{
+  x <- ohlc %>%
+    OHLC() %>%
+    rowMeans() %>%
+    reclass(match.to = TLT) %>%
+    log()
+  k <- length(findPeaks(density(last(x, start.t))$y))
+  
+  while (k <= 2)
+  {
+    start.t <- start.t + 1
+    .x <- last(x, start.t)
+    normal.mix <- normalmixEM(x = .x, 
+                              k = k,
+                              maxit = 10000,
+                              mean.constr = rep(last(.x), 2))
+    k <- length(findPeaks(density(.x)$y))
+    
+  }
+  
+  return(list(normal.mix = normal.mix,
+              end.t = start.t - 1))
+}
