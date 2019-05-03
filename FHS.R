@@ -41,7 +41,6 @@ Sys.setenv(TZ = 'UTC')
 
 FHS <- function(
   ohlc,
-  mean.constr,
   n.sim,
   m.sim = 5000
 )
@@ -55,7 +54,7 @@ FHS <- function(
   # +------------------------------------------------------------------
   
   spec <- ugarchspec(variance.model = list(model = 'fGARCH',
-                                           submodel = 'APARCH'),
+                                           submodel = 'ALLGARCH'),
                      distribution.model = 'sged')
   
   # +------------------------------------------------------------------
@@ -76,7 +75,7 @@ FHS <- function(
     # | x using either with replacement.
     # +------------------------------------------------------------------
     
-    z.m[, j] <- sample(x = z,
+    z.m[, j] <- sample(x = tail(z, n.sim),
                        size = n.sim)
   }
   
@@ -84,7 +83,7 @@ FHS <- function(
   # | Method for simulation from a variety of univariate GARCH models.
   # +------------------------------------------------------------------
   
-  sim <- ugarchsim(fit= fit,
+  sim <- ugarchsim(fit = fit,
                    n.sim = n.sim,
                    m.sim = m.sim,
                    custom.dist = list(name = "sample", 
@@ -109,6 +108,18 @@ FHS <- function(
   # +------------------------------------------------------------------
   
   n.mix <- normalmixEM(x = log(price.dist),
-                       mean.constr = mean.constr)
+                       maxit = 10000)
+  
+  mln.alpha.1 <- n.mix$lambda[1]
+  mln.meanlog.1 <- n.mix$mu[1]
+  mln.meanlog.2 <- n.mix$mu[2]
+  mln.sdlog.1 <- n.mix$sigma[1]
+  mln.sdlog.2 <- n.mix$sigma[2]
+  k <- seq(96, 113, .01)
+  dx <- dmln(x = k, alpha.1 = mln.alpha.1, meanlog.1 = mln.meanlog.1, 
+             meanlog.2 = mln.meanlog.2,
+             sdlog.1 = mln.sdlog.1, sdlog.2 = mln.sdlog.2)
+  plot(dx ~ k, type = "l") ; grid()
+  
   return(n.mix)
 }
