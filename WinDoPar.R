@@ -68,7 +68,7 @@ WinDoPar <- function(
   # | that will be used, otherwise multisession evaluation will be used.
   # +------------------------------------------------------------------
   
-  plan(multiprocess)
+  plan(multiprocess, workers = availableCores())
   
   raw.result <- foreach(i = n:nrow(x), .combine = rbind) %dopar%
   {
